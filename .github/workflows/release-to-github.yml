@@ -1,0 +1,99 @@
+# Publish the built plugin as a GitHub Release whenever a version tag is pushed.
+#
+# Trigger:
+#   git tag v0.6.0-stable && git push origin v0.6.0-stable
+#
+# This is a self-use workflow for this fork (not published to JetBrains Marketplace).
+# It only needs the default GITHUB_TOKEN — no extra secrets required.
+#
+# Overwrite behavior:
+#   gh release create --force is used, so pushing the same tag again (or a release
+#   already existing under the same version) rebuilds and overwrites the release and
+#   its zip asset. Note: overwriting a *tag* (moved tag) is best-effort on GitHub;
+#   if you need a clean rerun, delete the remote tag and push it again.
+name: Release to GitHub
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch Sources
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history + tags so `git describe` / tag lookup is accurate
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-home-cache-cleanup: true
+          cache-read-only: false
+          cache-disabled: true
+
+      # Read pluginVersion (e.g. 0.6.0-stable) and the matching changelog entry
+      - name: Export Properties
+        id: properties
+        shell: bash
+        run: |
+          PROPERTIES="$(./gradlew properties --console=plain -q)"
+          VERSION="$(echo "$PROPERTIES" | grep "^version:" | cut -f2- -d ' ')"
+          CHANGELOG="$(./gradlew getChangelog --unreleased --no-header --console=plain -q)"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # Fail early if the tag does not match the plugin version, so we never publish
+      # a release under a tag name that disagrees with the packaged plugin version.
+      - name: Verify tag matches version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.properties.outputs.version }}"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match plugin version '$VERSION'. " \
+                 "Update gradle.properties or push a tag named v$VERSION."
+            exit 1
+          fi
+
+      - name: Build Plugin
+        run: ./gradlew buildPlugin
+
+      # Create (or overwrite) the GitHub release; body is trimmed of leading/trailing blank lines
+      - name: Create or Update GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          NOTES="$(cat << 'EOM'
+          ${{ steps.properties.outputs.changelog }}
+          EOM
+          )"
+          NOTES="$(printf '%b' "$NOTES" | sed -e 's/^[[:space:]]*$//g' -e '/./,$!d')"
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "$NOTES" \
+            --target "${{ github.sha }}" \
+            ./build/distributions/*.zip \
+            --force
+
+          # Report the asset name so the run is easy to audit
+          ASSET=$(ls build/distributions/*.zip | head -n1)
+          echo "Published asset: $ASSET"

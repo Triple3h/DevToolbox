@@ -60,17 +60,23 @@ IntelliJ Platform target comes from `gradle.properties`: IC 2024.3, `pluginSince
 - URL parsing/formatting logic is per-framework; shared parsing helpers live in `extensions/Extensions.kt` and `utils/`.
 - To add a new tool: create a panel class in `tools/<tool>/`, wire it as a tab in `DevToolboxToolWindowFactory`, and register it in `tools/` section of this file.
 - JSON utilities must stay dependency-free (no external JSON lib) to keep Qodana warning-clean; `JsonFormat`/`JsonEscape` are the single source of truth for JSON validation/escaping.
-- Releases: bump `pluginVersion` in `gradle.properties`, update CHANGELOG.md, tag/GitHub-release. Versions use the `<x.y.z>-stable[-suffix]` convention. CI builds run Qodana (`qodana.yml`, JDK 21); keep it warning-clean.
+- Releases: bump `pluginVersion` in `gradle.properties`, update CHANGELOG.md (the `[Unreleased]` section becomes the release notes), then push a version tag — `git tag v0.6.0-stable && git push origin v0.6.0-stable`. The tag name (minus the `v`) must equal `pluginVersion` or the workflow fails. Versions use the `<x.y.z>-stable[-suffix]` convention. CI builds run Qodana (`qodana.yml`, JDK 21); keep it warning-clean.
 
 ## Publishing — this fork is self-use, NOT published
 
 This fork is for personal use and installed from disk (`./gradlew buildPlugin` →
 `build/distributions/*.zip` → Install Plugin from Disk). Do **not** run `publishPlugin`.
 
-The `.github/workflows/release.yml` is inherited from upstream (Nayacco) and binds to the
-Marketplace `PUBLISH_TOKEN`/account. If you ever push a release tag to this fork's origin,
-GitHub may trigger that workflow and attempt to publish to the upstream plugin — remove or
-neutralize it before relying on release tags.
+Releases are handled by `.github/workflows/release-to-github.yml` (self-use): pushing a
+`v*` tag builds the plugin and creates/overwrites a GitHub Release with the zip attached
+(no Marketplace, no secrets beyond the default `GITHUB_TOKEN`). Pushing the same tag
+again overwrites the release (via `gh release create --force`); note that overwriting an
+existing *tag* is best-effort on GitHub — for a clean rerun, delete the remote tag and
+push it again.
+
+The upstream `release.yml` (which bound to the Marketplace `PUBLISH_TOKEN`/account and
+ran `publishPlugin`) and the `releaseDraft` job in `build.yml` have been removed from
+this fork.
 
 ## Why this fork was renamed (and the extension-point trap)
 
