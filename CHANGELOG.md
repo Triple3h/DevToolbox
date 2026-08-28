@@ -1,10 +1,14 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
-# RestfulHelper Changelog
+# DevToolbox Changelog
 
 ## [Unreleased]
 
-## [0.4.7-stable]
+## [0.5.0-stable] - 2026-08-28
+
+- Rename plugin to DevToolbox (fork of RestfulHelper, self-use)
+- Add Dev Toolbox tool window with JSON tools (format / minify / escape / unescape)
+- Add text diff tool window
 
 - Resolve [issue-51](https://github.com/Nayacco/RestfulHelper/issues/51)
 

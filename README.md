@@ -1,29 +1,24 @@
 <div align="center">
-    <a href="https://plugins.jetbrains.com/plugin/17400-restfulhelper">
-        <img src="./src/main/resources/META-INF/pluginIcon.svg" width="220" height="220" alt="logo"/>
-    </a>
+    <img src="./src/main/resources/META-INF/pluginIcon.svg" width="220" height="220" alt="logo"/>
 </div>
-<h1 align="center">RestfulHelper</h1>
-<p align="center">RestfulHelper is for IntelliJ IDEA for quick navigation to URL mapping declarations.</p>
-
-<p align="center">
-<a href="https://github.com/Nayacco/RestfulHelper/actions"><img src="https://github.com/Nayacco/RestfulHelper/workflows/Build/badge.svg"></a>
-<a href="https://plugins.jetbrains.com/plugin/17400-restfulhelper"><img src="https://img.shields.io/jetbrains/plugin/v/17400.svg"></a>
-<a href="https://plugins.jetbrains.com/plugin/17400-restfulhelper"><img src="https://img.shields.io/jetbrains/plugin/d/17400.svg"></a>
-</p>
+<h1 align="center">DevToolbox</h1>
+<p align="center">DevToolbox is an IntelliJ IDEA personal dev toolbox, forked from <a href="https://github.com/Nayacco/RestfulHelper">RestfulHelper</a>.</p>
 
 <!-- Plugin description -->
 
-This is a fork from [request-mapper](https://plugins.jetbrains.com/plugin/9567-request-mapper). Some bugs have been fixed, and more features will be developed.
+DevToolbox is a personal IntelliJ IDEA toolbox forked from [RestfulHelper](https://github.com/Nayacco/RestfulHelper) (which itself is a fork of [request-mapper](https://plugins.jetbrains.com/plugin/9567-request-mapper)), with additional dev utilities.
 
-## Plugin info 🌵
+## Features ✨
 
-#### 📙 Supported languages:
+#### 📗 REST mapping navigation (from RestfulHelper)
 
-- Java
-- Kotlin
+Quick navigation to HTTP URL mapping declarations (Spring, JAX-RS, Micronaut, Helidon) in Java and Kotlin source code.
 
-#### 📙 Supported annotations:
+- Search everywhere (<kbd>Shift</kbd> twice)
+- Keyboard shortcut: <kbd>Ctrl</kbd> + <kbd>\\</kbd>
+- Navigate (menu bar) -> Request Mapping
+
+Supported annotations:
 
 | Spring  | JAX-RS  | Micronaut  | Helidon (JAX-RS) |
 |:-:|:-:|:-:|:-:|
@@ -36,43 +31,21 @@ This is a fork from [request-mapper](https://plugins.jetbrains.com/plugin/9567-r
 | | ```@OPTIONS``` |  ```@Options``` | ```@OPTIONS``` |
 | | ```@HEAD``` | ```@Head``` | ```@HEAD``` |
 
-## Usage 👣
+#### 🧰 Dev Toolbox (new)
 
-- Search everywhere (```Shift``` twice)
-- Keyboard shortcuts:
-  - MacOS: ```Cmd + Back slash```
-  - Linux: ```Ctrl + Back slash```
-  - Windows: ```Ctrl + Back slash```
-- Navigate (menu bar) -> Request mapping
+A right-hand tool window with three tabs:
 
-## Support the project 🧡
-
-You can support the project by the following actions:
-* Star this project on [GitHub](https://github.com/Nayacco/RestfulHelper)
-* Share this plugin with your friends/colleagues
-* Rate this plugin on [JetBrains plugin repository](https://plugins.jetbrains.com/plugin/17400-restfulhelper)
-* Make pull requests
-* Report bugs
-* Tell your ideas
-
-|  ⚡ **wechat**           | ⚡ **alipay**           |
-| ------------------------ | ------------------------ |
-|<img width=200 src="https://cdn.jsdelivr.net/gh/nayacco/cdn@master/blog/donate_wechat.png"/>|<img width=200 src="https://cdn.jsdelivr.net/gh/nayacco/cdn@master/blog/donate_alipay.png"/>|
-
-> Thanks to the wechat user (*珩) who always gave me ten CNY to remind me that it's time for an update, that's what keeps me updating!
+- **REST Services** — list all request mappings in the project.
+- **JSON Tools** — format / minify / escape / unescape JSON.
+- **Text Diff** — compare two texts side by side.
 
 <!-- Plugin description end -->
 
 ## Installation ⏳
 
-- Using IDE built-in plugin system:
-  
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "RestfulHelper"</kbd> >
-  <kbd>Install Plugin</kbd>
-  
-- Manually:
+Manually:
 
-  Download the [latest release](https://github.com/Nayacco/RestfulHelper/releases/latest) and install it manually using
+  Download the [latest release](https://github.com/Triple3h/RestfulHelper/releases/latest) and install it manually using
   <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ## License 📄
