@@ -2,7 +2,9 @@
 
 # DevToolbox Changelog
 
-## [Unreleased]
+## [0.6.1-stable] - 2026-08-28
+
+- Icons: replace the old magnifier with the Tabler "tools" icon (crossed wrench + screwdriver) for the plugin icon and the Dev Toolbox tool window / Search Everywhere icons
 
 ## [0.6.0-stable] - 2026-08-28
 
