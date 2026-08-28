@@ -14,7 +14,6 @@ import javax.swing.JPanel
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
-import javax.swing.tree.TreePath
 
 /**
  * Collapsible tree rendering of a [JsonValue]: `key : {n}` for objects, `key : [n]` for
@@ -137,7 +136,4 @@ class JsonTreeView : JPanel(BorderLayout()) {
 
         private const val MAX_PREVIEW = 120
     }
-
-    /** Exposed for tests/tools that need the selected node's path. */
-    val selectionPath: TreePath? get() = tree.selectionPath
 }

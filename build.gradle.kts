@@ -2,6 +2,7 @@ import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.Constants.Constraints
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     id("java") // Java support
@@ -104,8 +105,13 @@ intellijPlatform {
     }
 
     pluginVerification {
+        // Pin the verification IDE set to the project's actual target (IC 2024.3). The
+        // plugin has no untilBuild, so `ides { recommended() }` resolves the "latest
+        // compatible IDE" — currently IC 2025.3, which the platform repo can't serve
+        // ("Could not find idea:ideaIC:2025.3"). An explicit list keeps the verifier on
+        // versions the build can actually resolve.
         ides {
-            recommended()
+            ide("IC", "2024.3")
         }
     }
 }
@@ -134,6 +140,14 @@ tasks {
 
     publishPlugin {
         dependsOn(patchChangelog)
+    }
+
+    // The IntelliJ plugin-verifier tasks are not configuration-cache safe: the plugin
+    // serializes its IDE descriptors (ProviderBackedFileCollectionSpec) and Gradle discards
+    // the cache ("field __ides__ of task :verifyPlugin"). Build CI runs verifyPlugin, so
+    // keep these tasks out of the cache rather than failing every build.
+    withType<VerifyPluginTask>().configureEach {
+        notCompatibleWithConfigurationCache("VerifyPluginTask cannot serialize its IDE descriptors")
     }
 }
 

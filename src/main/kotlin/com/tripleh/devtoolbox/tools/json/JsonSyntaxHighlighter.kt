@@ -2,7 +2,6 @@ package com.tripleh.devtoolbox.tools.json
 
 import com.intellij.lexer.Lexer
 import com.intellij.lexer.LexerPosition
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.TextAttributesKey
@@ -140,10 +139,9 @@ private class JsonToolsLexer : Lexer() {
     private fun scanString() {
         pos++
         while (pos < endOffset) {
-            val c = buffer[pos]
-            when {
-                c == '\\' -> pos += 2
-                c == '"' -> { pos++; break }
+            when (val c = buffer[pos]) {
+                '\\' -> pos += 2
+                '"' -> { pos++; break }
                 else -> pos++
             }
         }
@@ -196,7 +194,7 @@ internal class JsonEditorField(project: Project) : EditorTextField(
 
     override fun createEditor(): EditorEx {
         val ex = super.createEditor()
-        ex.setHighlighter(createHighlighter())
+        ex.highlighter = createHighlighter()
         return ex
     }
 

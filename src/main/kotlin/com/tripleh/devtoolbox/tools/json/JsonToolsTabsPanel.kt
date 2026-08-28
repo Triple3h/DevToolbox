@@ -17,7 +17,6 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.Font
 import javax.swing.JButton
-import javax.swing.JComponent
 import javax.swing.JPanel
 
 /**
