@@ -3,8 +3,10 @@ package com.tripleh.devtoolbox
 import com.intellij.navigation.ItemPresentation
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.util.Computable
+import com.intellij.openapi.util.ThrowableComputable
 import com.intellij.pom.Navigatable
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
@@ -19,9 +21,14 @@ class RequestMappingItem(val psiElement: PsiElement, private val urlPath: String
 
     override fun getPresentation(): ItemPresentation = RequestMappingItemPresentation()
 
-    override fun navigate(requestFocus: Boolean) = navigationElement?.navigate(requestFocus) ?: Unit
+    override fun navigate(requestFocus: Boolean) {
+        val target = navigationElement ?: return
+        ApplicationManager.getApplication().runReadAction { target.navigate(requestFocus) }
+    }
 
-    override fun canNavigate(): Boolean = navigationElement?.canNavigate() ?: false
+    override fun canNavigate(): Boolean = ReadAction.compute(ThrowableComputable {
+        navigationElement?.canNavigate() ?: false
+    })
 
     override fun canNavigateToSource(): Boolean = true
 
