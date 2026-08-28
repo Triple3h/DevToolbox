@@ -23,6 +23,7 @@
 
     <extensions  defaultExtensionNs="com.intellij">
         <searchEverywhereContributor implementation="com.github.nayacco.restfulhelper.RequestMappingGoToContributor$Factory"/>
+        <toolWindow id="REST Services" anchor="right" factoryClass="com.github.nayacco.restfulhelper.RestServicesToolWindowFactory" icon="/icons/search.png"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.github.goldsubmarine.restfulhelper">

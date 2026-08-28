@@ -8,12 +8,15 @@ import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
+import javax.swing.ListCellRenderer
 
 class RequestMappingModel(project: Project, contributors: List<ChooseByNameContributor>) : FilteringGotoByModel<FileType>(project, contributors), DumbAware {
 
     override fun getItemProvider(context: PsiElement?): ChooseByNameItemProvider {
         return RequestMappingItemProvider()
     }
+
+    override fun getListCellRenderer(): ListCellRenderer<*> = RequestMappingItemListCellRenderer()
 
     override fun filterValueFor(item: NavigationItem): FileType? = null
 
