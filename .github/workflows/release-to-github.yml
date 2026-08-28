@@ -7,10 +7,10 @@
 # It only needs the default GITHUB_TOKEN — no extra secrets required.
 #
 # Overwrite behavior:
-#   gh release create --force is used, so pushing the same tag again (or a release
-#   already existing under the same version) rebuilds and overwrites the release and
-#   its zip asset. Note: overwriting a *tag* (moved tag) is best-effort on GitHub;
-#   if you need a clean rerun, delete the remote tag and push it again.
+#   If a release for the tag already exists (re-tagged rerun), its zip asset is replaced
+#   via `gh release upload --clobber`; otherwise the release is created fresh. Note:
+#   overwriting a *tag* (moved tag) is best-effort on GitHub; if you need a clean rerun,
+#   delete the remote tag and push it again.
 name: Release to GitHub
 
 on:
@@ -44,14 +44,16 @@ jobs:
           cache-read-only: false
           cache-disabled: true
 
-      # Read pluginVersion (e.g. 0.6.0-stable) and the matching changelog entry
+      # Read pluginVersion (e.g. 0.6.0-stable) and the matching changelog entry.
+      # Notes come from the section named after pluginVersion (the release just cut);
+      # [Unreleased] is empty on a released tag, so --unreleased would yield nothing.
       - name: Export Properties
         id: properties
         shell: bash
         run: |
           PROPERTIES="$(./gradlew properties --console=plain -q)"
           VERSION="$(echo "$PROPERTIES" | grep "^version:" | cut -f2- -d ' ')"
-          CHANGELOG="$(./gradlew getChangelog --unreleased --no-header --console=plain -q)"
+          CHANGELOG="$(./gradlew getChangelog --project-version "$VERSION" --no-header --console=plain -q)"
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -75,7 +77,8 @@ jobs:
       - name: Build Plugin
         run: ./gradlew buildPlugin
 
-      # Create (or overwrite) the GitHub release; body is trimmed of leading/trailing blank lines
+      # Create the release, replacing the assets if it already exists (re-tagged rerun);
+      # body is trimmed of leading/trailing blank lines
       - name: Create or Update GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -87,12 +90,16 @@ jobs:
           )"
           NOTES="$(printf '%b' "$NOTES" | sed -e 's/^[[:space:]]*$//g' -e '/./,$!d')"
 
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --notes "$NOTES" \
-            --target "${{ github.sha }}" \
-            ./build/distributions/*.zip \
-            --force
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" ./build/distributions/*.zip --clobber
+            echo "Updated assets on existing release: $TAG"
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes "$NOTES" \
+              --target "${{ github.sha }}" \
+              ./build/distributions/*.zip
+          fi
 
           # Report the asset name so the run is easy to audit
           ASSET=$(ls build/distributions/*.zip | head -n1)

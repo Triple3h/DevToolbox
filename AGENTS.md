@@ -68,11 +68,14 @@ This fork is for personal use and installed from disk (`./gradlew buildPlugin` �
 `build/distributions/*.zip` → Install Plugin from Disk). Do **not** run `publishPlugin`.
 
 Releases are handled by `.github/workflows/release-to-github.yml` (self-use): pushing a
-`v*` tag builds the plugin and creates/overwrites a GitHub Release with the zip attached
-(no Marketplace, no secrets beyond the default `GITHUB_TOKEN`). Pushing the same tag
-again overwrites the release (via `gh release create --force`); note that overwriting an
-existing *tag* is best-effort on GitHub — for a clean rerun, delete the remote tag and
-push it again.
+`v*` tag builds the plugin and creates a GitHub Release with the zip attached
+(no Marketplace, no secrets beyond the default `GITHUB_TOKEN`). Release notes are read
+from the CHANGELOG section named after `pluginVersion` (`getChangelog --project-version`),
+so the `[Unreleased]` entries must be renamed to the version section at release time —
+`--unreleased` would be empty. If a release for the tag already exists (re-tagged rerun),
+its assets are replaced via `gh release upload --clobber` (`gh release create` has no
+`--force` flag); note that overwriting an existing *tag* is best-effort on GitHub — for a
+clean rerun, delete the remote tag and push it again.
 
 The upstream `release.yml` (which bound to the Marketplace `PUBLISH_TOKEN`/account and
 ran `publishPlugin`) and the `releaseDraft` job in `build.yml` have been removed from
