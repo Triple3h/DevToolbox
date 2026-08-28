@@ -4,7 +4,8 @@
 
 ## [Unreleased]
 
-- JSON Tools: add collapsible JSON tree view (expand/collapse all, node selection highlights the source range) and multi-document sub-tabs ("+" to open, close button per tab)
+- Text Diff: rebuilt on the IDE's own diff viewer — line numbers, changed-line and intra-line word highlighting, gutter markers, change navigation and side swapping come from the platform; both panes stay editable with live re-diff, and both sides switching to valid JSON enables syntax coloring
+- JSON Tools: add collapsible JSON tree view (expand/collapse all, node selection highlights the source range) and multi-document sub-tabs (per-tab close button, "+" button placed inline right after the open tabs)
 - JSON Tools: editor upgraded to line-numbered, syntax-colored editor; minify/indent rewritten as value-tree serializers (fixes minify being a no-op and format double-indenting already-formatted input)
 - REST Services: resolve endpoint path from the method javadoc ("GET /path" line) when a mapping annotation carries no value/path (bare-annotation Feign clients)
 

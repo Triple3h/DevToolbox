@@ -26,7 +26,9 @@ class DevToolboxToolWindowFactory : ToolWindowFactory, DumbAware {
         manager.addContent(
             ContentFactory.getInstance().createContent(JsonToolsTabsPanel(project, toolWindow.disposable), TAB_JSON, false)
         )
-        manager.addContent(ContentFactory.getInstance().createContent(TextDiffPanel(), TAB_DIFF, false))
+        manager.addContent(
+            ContentFactory.getInstance().createContent(TextDiffPanel(project, toolWindow.disposable), TAB_DIFF, false)
+        )
 
         val remembered = Memory.lastTab
         val index = when (remembered) {
