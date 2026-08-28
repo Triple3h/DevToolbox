@@ -13,6 +13,7 @@ import com.tripleh.devtoolbox.annotations.extraction.PsiExpressionExtractor
 import com.tripleh.devtoolbox.model.Path
 import com.tripleh.devtoolbox.model.PathParameter
 import com.tripleh.devtoolbox.utils.fetchAnnotatedMethod
+import com.tripleh.devtoolbox.utils.findDocCommentPath
 
 abstract class SpringMappingAnnotation(
     val psiAnnotation: PsiAnnotation,
@@ -55,10 +56,7 @@ abstract class SpringMappingAnnotation(
 
     private fun fetchMapping(annotation: PsiAnnotation): List<String> {
         val pathMapping = PathAnnotation(annotation).fetchMappings(PATH)
-        return pathMapping.ifEmpty {
-            val valueMapping = PathAnnotation(annotation).fetchMappings(VALUE)
-            valueMapping.ifEmpty { listOf("") }
-        }
+        return pathMapping.ifEmpty { PathAnnotation(annotation).fetchMappings(VALUE) }
     }
 
     private fun fetchMappingsFromMethod(annotation: PsiAnnotation, method: PsiMethod): List<String> {
@@ -68,8 +66,10 @@ abstract class SpringMappingAnnotation(
             .mapNotNull { PathParameter(it).extractParameterNameWithType(SPRING_PATH_VARIABLE_CLASS, ::extractParameterNameFromAnnotation) }
             .toMap()
 
-        return fetchMapping(annotation)
-            .map { Path(it).addPathVariablesTypes(parametersNameWithType).toFullPath() }
+        val mappings = fetchMapping(annotation).ifEmpty {
+            method.findDocCommentPath().takeIf { it.isNotBlank() }?.let(::listOf) ?: listOf("")
+        }
+        return mappings.map { Path(it).addPathVariablesTypes(parametersNameWithType).toFullPath() }
     }
 
     private fun extractParameterNameFromAnnotation(annotation: PsiAnnotation, defaultValue: String): String {

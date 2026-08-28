@@ -19,6 +19,19 @@ private tailrec fun fetchAnnotatedPsiElement(psiElement: PsiElement): PsiElement
 
 private val SUMMARY_ANNOTATION_NAMES = setOf("Operation", "ApiOperation")
 
+private val DOC_COMMENT_PATH = Regex("""(?i)\b(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+(/\S+)""")
+
+/**
+ * Some Feign clients use a bare @GetMapping/@PostMapping and document the real downstream
+ * path in the method javadoc, e.g. a line "GET /svc/api/loadList.v". For those mappings the
+ * annotation attributes are empty; this returns the path from the first such comment line,
+ * or "" when the doc comment carries none.
+ */
+fun PsiMethod.findDocCommentPath(): String = findDocCommentPath(docComment?.text ?: "")
+
+internal fun findDocCommentPath(docCommentText: String): String =
+    DOC_COMMENT_PATH.find(docCommentText)?.groupValues?.get(2) ?: ""
+
 /**
  * Best-effort extraction of a human readable endpoint summary from documentation
  * annotations on a method: @Operation(summary = …) or @ApiOperation(value = …).
