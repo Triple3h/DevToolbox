@@ -15,7 +15,7 @@ DevToolbox is a personal IntelliJ IDEA toolbox forked from [RestfulHelper](https
 Quick navigation to HTTP URL mapping declarations (Spring, JAX-RS, Micronaut, Helidon) in Java and Kotlin source code.
 
 - Search everywhere (<kbd>Shift</kbd> twice)
-- Keyboard shortcut: <kbd>Ctrl</kbd> + <kbd>\\</kbd>
+- Keyboard shortcut: <kbd>Cmd</kbd> + <kbd>\\</kbd> (macOS) / <kbd>Ctrl</kbd> + <kbd>\\</kbd> (Windows/Linux)
 - Navigate (menu bar) -> Request Mapping
 
 Supported annotations:
@@ -33,9 +33,9 @@ Supported annotations:
 
 #### 🧰 Dev Toolbox (new)
 
-A right-hand tool window with three tabs:
+A right-hand tool window — open it via **View → Tool Windows → Dev Toolbox**. It groups three tabs:
 
-- **REST Services** — list all request mappings in the project.
+- **REST Services** — list all request mappings in the project (the REST mapping navigation above, now a tab in the window).
 - **JSON Tools** — format / minify / escape / unescape JSON.
 - **Text Diff** — compare two texts side by side.
 
@@ -43,10 +43,14 @@ A right-hand tool window with three tabs:
 
 ## Installation ⏳
 
-Manually:
+This fork is self-use and not published to JetBrains Marketplace. Build the plugin zip locally and
+install from disk:
 
-  Download the [latest release](https://github.com/Triple3h/RestfulHelper/releases/latest) and install it manually using
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+```bash
+./gradlew buildPlugin   # produces build/distributions/DevToolbox-<version>.zip
+```
+
+Then <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ## License 📄
 

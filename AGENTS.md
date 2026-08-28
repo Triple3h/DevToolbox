@@ -62,6 +62,29 @@ IntelliJ Platform target comes from `gradle.properties`: IC 2024.3, `pluginSince
 - JSON utilities must stay dependency-free (no external JSON lib) to keep Qodana warning-clean; `JsonFormat`/`JsonEscape` are the single source of truth for JSON validation/escaping.
 - Releases: bump `pluginVersion` in `gradle.properties`, update CHANGELOG.md, tag/GitHub-release. Versions use the `<x.y.z>-stable[-suffix]` convention. CI builds run Qodana (`qodana.yml`, JDK 21); keep it warning-clean.
 
+## Publishing — this fork is self-use, NOT published
+
+This fork is for personal use and installed from disk (`./gradlew buildPlugin` →
+`build/distributions/*.zip` → Install Plugin from Disk). Do **not** run `publishPlugin`.
+
+The `.github/workflows/release.yml` is inherited from upstream (Nayacco) and binds to the
+Marketplace `PUBLISH_TOKEN`/account. If you ever push a release tag to this fork's origin,
+GitHub may trigger that workflow and attempt to publish to the upstream plugin — remove or
+neutralize it before relying on release tags.
+
+## Why this fork was renamed (and the extension-point trap)
+
+Renamed from RestfulHelper to **DevToolbox** (plugin id `com.tripleh.devtoolbox`, package root
+`com.tripleh.devtoolbox`) for personal use. This is a fork of a fork (RestfulHelper ← request-mapper).
+
+The upstream project kept **two** identities: a legacy plugin id `com.github.goldsubmarine.restfulhelper`
+(used as the extension-point namespace) and a different package `com.github.nayacco.restfulhelper`.
+Registering extensions under the wrong namespace silently dropped them (history: "fix Missing
+extension point" ×3). During this fork's rename the two were unified — plugin id, extension-point
+namespace (`plugin.xml` / `pluginKotlin.xml` `defaultExtensionNs`) and the package all equal
+`com.tripleh.devtoolbox`. **If you ever change the plugin id again, update all three places
+together, including the hardcoded extension-point name string in `extensions/Extensions.kt`.**
+
 ## Docs worth reading before sensitive changes
 
 - IntelliJ Platform docs: https://plugins.jetbrains.com/docs/intellij/
