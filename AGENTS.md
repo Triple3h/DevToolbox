@@ -60,7 +60,7 @@ IntelliJ Platform target comes from `gradle.properties`: IC 2024.3, `pluginSince
 - URL parsing/formatting logic is per-framework; shared parsing helpers live in `extensions/Extensions.kt` and `utils/`.
 - To add a new tool: create a panel class in `tools/<tool>/`, wire it as a tab in `DevToolboxToolWindowFactory`, and register it in `tools/` section of this file.
 - JSON utilities must stay dependency-free (no external JSON lib) to keep Qodana warning-clean; `JsonFormat`/`JsonEscape` are the single source of truth for JSON validation/escaping.
-- Releases: bump `pluginVersion` in `gradle.properties`, update CHANGELOG.md (the `[Unreleased]` section becomes the release notes), then push a version tag — `git tag v0.6.0-stable && git push origin v0.6.0-stable`. The tag name (minus the `v`) must equal `pluginVersion` or the workflow fails. Versions use the `<x.y.z>-stable[-suffix]` convention. CI builds run Qodana (`qodana.yml`, JDK 21); keep it warning-clean.
+- Releases: bump `pluginVersion` in `gradle.properties`, update CHANGELOG.md (the `[Unreleased]` section becomes the release notes), then push a version tag — `git tag v0.6.0-stable && git push origin v0.6.0-stable`. The tag name (minus the `v`) must equal `pluginVersion` or the workflow fails. Versions use the `<x.y.z>-stable[-suffix]` convention. Keep Qodana warning-clean (`./gradlew qodana`, JDK 21) — it is no longer enforced by CI, only by habit.
 
 ## Publishing — this fork is self-use, NOT published
 
@@ -79,7 +79,9 @@ clean rerun, delete the remote tag and push it again.
 
 The upstream `release.yml` (which bound to the Marketplace `PUBLISH_TOKEN`/account and
 ran `publishPlugin`) and the `releaseDraft` job in `build.yml` have been removed from
-this fork.
+this fork. The whole `build.yml` was deleted too: only tag-triggered `release-to-github.yml`
+remains, so pushing to `main` no longer runs any workflow. `run-ui-tests.yml` stays but is
+manual-only (`workflow_dispatch`).
 
 ## Why this fork was renamed (and the extension-point trap)
 
