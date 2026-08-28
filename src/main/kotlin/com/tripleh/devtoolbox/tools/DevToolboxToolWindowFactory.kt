@@ -10,7 +10,7 @@ import com.intellij.ui.content.ContentManagerEvent
 import com.intellij.ui.content.ContentManagerListener
 import com.tripleh.devtoolbox.RestServicesPanel
 import com.tripleh.devtoolbox.tools.diff.TextDiffPanel
-import com.tripleh.devtoolbox.tools.json.JsonToolsPanel
+import com.tripleh.devtoolbox.tools.json.JsonToolsTabsPanel
 
 /**
  * "Dev Toolbox" tool window: a tabbed panel grouping all dev utilities — REST endpoint
@@ -23,7 +23,9 @@ class DevToolboxToolWindowFactory : ToolWindowFactory, DumbAware {
 
         val restPanel = RestServicesPanel(project)
         manager.addContent(ContentFactory.getInstance().createContent(restPanel, TAB_REST, false))
-        manager.addContent(ContentFactory.getInstance().createContent(JsonToolsPanel(), TAB_JSON, false))
+        manager.addContent(
+            ContentFactory.getInstance().createContent(JsonToolsTabsPanel(project, toolWindow.disposable), TAB_JSON, false)
+        )
         manager.addContent(ContentFactory.getInstance().createContent(TextDiffPanel(), TAB_DIFF, false))
 
         val remembered = Memory.lastTab

@@ -1,51 +1,63 @@
 package com.tripleh.devtoolbox.tools.json
 
-import com.intellij.ui.JBColor
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.ScrollType
+import com.intellij.openapi.editor.event.DocumentEvent
+import com.intellij.openapi.editor.event.DocumentListener
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBTextArea
-import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
+import com.intellij.openapi.Disposable
 import com.tripleh.devtoolbox.tools.ui.StatusPanel
 import java.awt.BorderLayout
-import java.awt.Font
 import java.awt.FlowLayout
 import java.awt.event.ActionEvent
 import javax.swing.AbstractAction
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.KeyStroke
-import javax.swing.event.DocumentEvent
-import javax.swing.event.DocumentListener
+import javax.swing.Timer
 
 /**
- * JSON Tools: format, minify, escape and unescape JSON in a single editor.
+ * JSON Tools content of one sub-tab: a syntax-colored editor (left) and a live collapsible
+ * tree view (right) fed by a debounced re-parse of the document. Format/Minify/Escape/
+ * Unescape rewrite the document; every sub-tab instance owns an independent document.
  */
-class JsonToolsPanel : JPanel(BorderLayout()) {
+class JsonToolsPanel(private val project: Project, parentDisposable: Disposable) : JPanel(BorderLayout()) {
 
-    private val editor = JBTextArea()
+    private val editor = JsonEditorField(project)
+    private val treeView = JsonTreeView()
     private val status = StatusPanel()
     private val formatButton = JButton("Format")
     private val minifyButton = JButton("Minify")
     private val escapeButton = JButton("Escape")
     private val unescapeButton = JButton("Unescape")
     private val clearButton = JButton("Clear")
-    private val indentField = JBTextField(INDENT_DEFAULT.toString(), 4)
+    private val indentCombo = ComboBox(arrayOf("2", "4"))
+    private val refreshTimer = Timer(REFRESH_DELAY_MS) { refreshTreeAndStatus() }.apply { isRepeats = false }
 
     init {
-        editor.lineWrap = false
-        editor.tabSize = 2
-        editor.font = Font(Font.MONOSPACED, Font.PLAIN, JBUI.scaleFontSize(13f).toInt())
-        editor.emptyText.text = "Paste or type JSON here…"
+        editor.setPlaceholder("Paste or type JSON here…")
+        editor.addSettingsProvider { ex ->
+            ex.settings.isLineNumbersShown = true
+            installShortcuts(ex.contentComponent)
+        }
         editor.document.addDocumentListener(object : DocumentListener {
-            override fun insertUpdate(e: DocumentEvent?) = updateStatus()
-            override fun removeUpdate(e: DocumentEvent?) = updateStatus()
-            override fun changedUpdate(e: DocumentEvent?) = updateStatus()
-        })
+            override fun documentChanged(event: DocumentEvent) = scheduleRefresh()
+        }, parentDisposable)
+        treeView.selectionConsumer = { start, end -> selectRangeInEditor(start, end) }
 
-        val editorPane = JPanel(BorderLayout())
-        editorPane.add(JBLabel("Input"), BorderLayout.NORTH)
-        editorPane.add(editor, BorderLayout.CENTER)
-        add(editorPane, BorderLayout.CENTER)
+        val leftPane = JPanel(BorderLayout())
+        leftPane.add(JBLabel("Input"), BorderLayout.NORTH)
+        leftPane.add(editor, BorderLayout.CENTER)
+
+        val split = OnePixelSplitter(false, SPLIT_PROPORTION).apply {
+            firstComponent = leftPane
+            secondComponent = treeView
+        }
 
         val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
         toolbar.add(formatButton)
@@ -54,70 +66,83 @@ class JsonToolsPanel : JPanel(BorderLayout()) {
         toolbar.add(unescapeButton)
         toolbar.add(clearButton)
         toolbar.add(JBLabel("indent:"))
-        toolbar.add(indentField)
-        add(toolbar, BorderLayout.NORTH)
-        add(status, BorderLayout.SOUTH)
+        toolbar.add(indentCombo)
 
-        formatButton.addActionListener { transform { JsonFormat.minify(it)?.let { JsonFormat.indent(it, indent()) } } }
+        add(toolbar, BorderLayout.NORTH)
+        add(split, BorderLayout.CENTER)
+        add(status, BorderLayout.SOUTH)
+        border = JBUI.Borders.empty(4)
+
+        formatButton.addActionListener { transform { JsonFormat.indent(it, indent()) } }
         minifyButton.addActionListener { transform { JsonFormat.minify(it) } }
         escapeButton.addActionListener { transform { JsonEscape.escape(it) } }
         unescapeButton.addActionListener { transform { JsonEscape.unescape(it) } }
-        clearButton.addActionListener {
-            editor.text = ""
-            updateStatus()
-        }
-        indentField.addActionListener {
-            val value = indent()
-            indentField.text = value.toString()
-            transform { JsonFormat.minify(it)?.let { JsonFormat.indent(it, value) } }
+        clearButton.addActionListener { transform { "" } }
+        indentCombo.addActionListener {
+            if (editor.text.isNotBlank()) formatButton.doClick()
         }
 
-        // Cmd/Ctrl+Enter formats, Cmd/Ctrl+Shift+Enter minifies.
-        editor.inputMap.put(KeyStroke.getKeyStroke("meta ENTER"), "format")
-        editor.inputMap.put(KeyStroke.getKeyStroke("control ENTER"), "format")
-        editor.inputMap.put(KeyStroke.getKeyStroke("meta shift ENTER"), "minify")
-        editor.inputMap.put(KeyStroke.getKeyStroke("control shift ENTER"), "minify")
-        editor.actionMap.put("format", TransformAction { formatButton.doClick() })
-        editor.actionMap.put("minify", TransformAction { minifyButton.doClick() })
-
-        updateStatus()
+        refreshTreeAndStatus()
     }
 
-    private fun indent(): Int {
-        val parsed = runCatching { indentField.text.trim().toInt() }.getOrNull()
-        return if (parsed != null && parsed in INDENT_VALUES) parsed else INDENT_DEFAULT
+    private fun indent(): Int = when (indentCombo.selectedItem) {
+        "4" -> 4
+        else -> 2
     }
 
-    /** Runs [transform] on the current text and replaces it on success; on failure shows the parse error. */
-    private fun transform(transform: (String) -> String?) {
-        val result = transform(editor.text)
-        if (result == null) {
-            updateStatus() // shows the "Invalid JSON" error
-            return
-        }
-        val caret = editor.caretPosition
-        editor.text = result
-        editor.caretPosition = caret.coerceIn(0, result.length)
-        updateStatus()
+    private fun scheduleRefresh() {
+        refreshTimer.restart()
     }
 
-    private fun updateStatus() {
-        val text = editor.text
+    private fun refreshTreeAndStatus() {
+        val text = editor.document.text
         val error = JsonFormat.validate(text)
+        val value = if (error == null) JsonFormat.parse(text) else null
         val lines = if (text.isBlank()) 0 else text.trim().count { it == '\n' } + 1
         status.update(text.length, lines, error)
+        treeView.show(value, text.isBlank())
+    }
+
+    /** Runs [transform] on the current text and replaces the document on success; on failure shows the parse error. */
+    private fun transform(transform: (String) -> String?) {
+        val result = transform(editor.document.text) ?: run {
+            refreshTreeAndStatus() // shows the "Invalid JSON" error
+            return
+        }
+        val caret = editor.editor?.caretModel?.offset ?: 0
+        val document = editor.document
+        WriteCommandAction.runWriteCommandAction(project) { document.setText(result) }
+        editor.editor?.caretModel?.moveToOffset(caret.coerceAtMost(result.length))
+        refreshTreeAndStatus()
+    }
+
+    private fun selectRangeInEditor(start: Int, end: Int) {
+        val ex = editor.editor ?: return
+        ex.selectionModel.setSelection(start, end)
+        ex.caretModel.moveToOffset(end)
+        ex.scrollingModel.scrollToCaret(ScrollType.RELATIVE)
+    }
+
+    /** Cmd/Ctrl+Enter formats, Cmd/Ctrl+Shift+Enter minifies. */
+    private fun installShortcuts(component: JComponent) {
+        component.inputMap.put(KeyStroke.getKeyStroke("meta ENTER"), "format")
+        component.inputMap.put(KeyStroke.getKeyStroke("control ENTER"), "format")
+        component.inputMap.put(KeyStroke.getKeyStroke("meta shift ENTER"), "minify")
+        component.inputMap.put(KeyStroke.getKeyStroke("control shift ENTER"), "minify")
+        component.actionMap.put("format", TransformAction { formatButton.doClick() })
+        component.actionMap.put("minify", TransformAction { minifyButton.doClick() })
     }
 
     /** Keyboard shortcuts only act when the editor holds something JSON-like. */
     private inner class TransformAction(private val action: () -> Unit) : AbstractAction() {
         override fun actionPerformed(e: ActionEvent?) {
-            val text = editor.text.trim()
+            val text = editor.document.text.trim()
             if (text.startsWith("{") || text.startsWith("[") || text.startsWith("\"")) action()
         }
     }
 
     private companion object {
-        const val INDENT_DEFAULT = 2
-        val INDENT_VALUES = setOf(2, 4)
+        const val REFRESH_DELAY_MS = 300
+        const val SPLIT_PROPORTION = 0.55f
     }
 }

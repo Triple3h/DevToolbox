@@ -23,7 +23,7 @@ Single-module Gradle Kotlin project. One source tree:
   - `contributor/` — `ChooseByNameContributor`s: abstract `RequestMappingByNameContributor` plus `JavaRequestMappingContributor` and `KotlinRequestMappingContributor`.
   - `model/` — path/parameter model used for popup display.
     - `tools/` — the Dev Toolbox feature:
-      - `json/` — `JsonToolsPanel` (editor + Format/Minify/Escape/Unescape), `JsonFormat` (dependency-free recursive-descent JSON validator/formatter/minifier), `JsonEscape` (string escaping/unescaping). No external JSON library on purpose (keeps Qodana clean).
+      - `json/` — `JsonToolsTabsPanel` (multi-document sub-tabs: "+" opens, per-tab close button) hosting one `JsonToolsPanel` per tab (split editor + tree view; Format/Minify/Escape/Unescape, indent selector, debounced live parse). `JsonFormat` (dependency-free recursive-descent JSON validator that builds a `JsonValue` tree with source offsets; minify/indent are tree serializers), `JsonEscape` (string escaping/unescaping), `JsonSyntaxHighlighter.kt` (self-contained JSON lexer + `JsonEditorField` line-numbered editor — deliberately independent of the optional IDE JSON plugin). No external JSON library on purpose (keeps Qodana clean).
       - `diff/` — `TextDiffPanel` (side-by-side `JTextPane` with line highlighting, click-to-sync, Alt+Up/Down navigation), `TextDiff` (Myers O(ND) line diff).
       - `ui/` — `StatusPanel` shared status bar.
       - `DevToolboxToolWindowFactory` — registers the single "Dev Toolbox" tool window with three tabs (REST Services / JSON Tools / Text Diff); `Memory` remembers the last active tab per IDE session. The REST tab is `RestServicesPanel` (root package), refreshed via `DumbService.runWhenSmart`.

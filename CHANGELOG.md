@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+- JSON Tools: add collapsible JSON tree view (expand/collapse all, node selection highlights the source range) and multi-document sub-tabs ("+" to open, close button per tab)
+- JSON Tools: editor upgraded to line-numbered, syntax-colored editor; minify/indent rewritten as value-tree serializers (fixes minify being a no-op and format double-indenting already-formatted input)
+- REST Services: resolve endpoint path from the method javadoc ("GET /path" line) when a mapping annotation carries no value/path (bare-annotation Feign clients)
+
 ## [0.5.0-stable] - 2026-08-28
 
 - Rename plugin to DevToolbox (fork of RestfulHelper, self-use)

@@ -4,14 +4,18 @@ package com.tripleh.devtoolbox.tools.json
  * Minimal recursive-descent JSON validator / formatter / minifier.
  *
  * No external JSON library is used on purpose: keeps the plugin dependency-free and
- * Qodana-warning-clean. The parser validates the whole document and produces
- * human-readable errors with 1-based line/column; it does not build a value tree.
+ * Qodana-warning-clean. The parser validates the whole document and builds a [JsonValue]
+ * tree carrying each value's character range in the source; minify/indent are tree
+ * serializers, so they are lossless and work on already-formatted input. Errors carry
+ * 1-based line/column.
  */
 object JsonFormat {
 
-    fun validate(input: String): String? = runCatching {
-        Parser(input).run()
-    }.exceptionOrNull()?.message
+    /** Parses [input] into a value tree, or null when it is not valid JSON. */
+    fun parse(input: String): JsonValue? = runCatching { Parser(input).parseDocument() }.getOrNull()
+
+    fun validate(input: String): String? =
+        runCatching { Parser(input).parseDocument() }.exceptionOrNull()?.message
 
     /**
      * Returns the minified JSON, or null when the input is not valid JSON.
@@ -19,47 +23,15 @@ object JsonFormat {
      */
     fun minify(input: String): String? {
         if (input.isBlank()) return null
-        return runCatching { Parser(input).run() }.getOrNull()
+        val value = parse(input) ?: return null
+        return CompactSerializer.serialize(value)
     }
 
-    /** Indents minified (or compact) JSON with [indent] spaces; returns null if not valid JSON. */
+    /** Pretty-prints [input] with [indent] spaces per level; returns null if not valid JSON. */
     fun indent(input: String, indent: Int = 2): String? {
-        val minified = minify(input) ?: return null
-        val sb = StringBuilder()
-        var depth = 0
-        var inString = false
-        var i = 0
-        val n = minified.length
-        while (i < n) {
-            val c = minified[i]
-            when {
-                c == '"' && !inString -> { inString = true; sb.append(c); i++ }
-                c == '\\' && inString -> { sb.append(c).append(minified.getOrNull(i + 1) ?: '\\'); i += 2 }
-                c == '"' && inString -> { inString = false; sb.append(c); i++ }
-                !inString && (c == '{' || c == '[') -> {
-                    sb.append(c)
-                    if (i + 1 < n && minified[i + 1] != '}' && minified[i + 1] != ']') {
-                        depth++
-                        sb.append('\n').append(" ".repeat(depth * indent))
-                    }
-                    i++
-                }
-                !inString && (c == '}' || c == ']') -> {
-                    if (i > 0 && minified[i - 1] != '{' && minified[i - 1] != '[' &&
-                        minified[i - 1] != ',' && minified[i - 1] != ':'
-                    ) {
-                        sb.append('\n')
-                    }
-                    depth = (depth - 1).coerceAtLeast(0)
-                    sb.append(" ".repeat(depth * indent)).append(c)
-                    i++
-                }
-                !inString && c == ',' -> { sb.append(c).append('\n').append(" ".repeat(depth * indent)); i++ }
-                !inString && c == ':' -> { sb.append(c).append(' '); i++ }
-                else -> { sb.append(c); i++ }
-            }
-        }
-        return sb.toString()
+        if (input.isBlank()) return null
+        val value = parse(input) ?: return null
+        return PrettySerializer(indent.coerceIn(1, 8)).serialize(value)
     }
 
     private class Parser(private val input: String) {
@@ -67,93 +39,82 @@ object JsonFormat {
         private var line = 1
         private var col = 1
 
-        fun run(): String {
+        fun parseDocument(): JsonValue {
             skipWhitespace()
-            parseValue()
+            val value = parseValue()
             skipWhitespace()
             if (pos < input.length) fail("Unexpected trailing content")
-            return input
+            return value
         }
 
-        private fun parseValue() {
+        private fun parseValue(): JsonValue {
             if (pos >= input.length) fail("Unexpected end of input")
-            when (input[pos]) {
+            val start = pos
+            val value: JsonValue = when (input[pos]) {
                 '{' -> parseObject()
                 '[' -> parseArray()
-                '"' -> parseString()
-                't' -> parseKeyword("true")
-                'f' -> parseKeyword("false")
-                'n' -> parseKeyword("null")
-                else -> parseNumber()
+                '"' -> parseStringValue()
+                't' -> parseKeywordValue("true", JsonBooleanValue(true))
+                'f' -> parseKeywordValue("false", JsonBooleanValue(false))
+                'n' -> parseKeywordValue("null", JsonNullValue())
+                else -> parseNumberValue()
             }
+            value.start = start
+            value.end = pos
+            return value
         }
 
-        private fun parseObject() {
+        private fun parseObject(): JsonObjectValue {
+            val obj = JsonObjectValue()
             advance()
             skipWhitespace()
-            if (peek() == '}') { advance(); return }
+            if (peek() == '}') { advance(); return obj }
             while (true) {
                 skipWhitespace()
                 if (peek() != '"') fail("Expected a string key")
+                val keyStart = pos
                 parseString()
+                val keyRaw = input.substring(keyStart, pos)
                 skipWhitespace()
                 if (peek() != ':') fail("Expected ':' after key")
                 advance()
                 skipWhitespace()
-                parseValue()
+                val value = parseValue()
+                obj.add(decodeString(keyRaw), keyRaw, value)
                 skipWhitespace()
                 when (peek()) {
                     ',' -> { advance(); skipWhitespace() }
-                    '}' -> { advance(); return }
+                    '}' -> { advance(); return obj }
                     else -> fail("Expected ',' or '}'")
                 }
             }
         }
 
-        private fun parseArray() {
+        private fun parseArray(): JsonArrayValue {
+            val array = JsonArrayValue()
             advance()
             skipWhitespace()
-            if (peek() == ']') { advance(); return }
+            if (peek() == ']') { advance(); return array }
             while (true) {
                 skipWhitespace()
-                parseValue()
+                array.items.add(parseValue())
                 skipWhitespace()
                 when (peek()) {
                     ',' -> { advance(); skipWhitespace() }
-                    ']' -> { advance(); return }
+                    ']' -> { advance(); return array }
                     else -> fail("Expected ',' or ']'")
                 }
             }
         }
 
-        private fun parseString() {
-            advance() // opening quote
-            while (true) {
-                if (pos >= input.length) fail("Unterminated string")
-                val c = input[pos]
-                when (c) {
-                    '"' -> { advance(); return }
-                    '\\' -> {
-                        advance()
-                        if (pos >= input.length) fail("Unterminated escape sequence")
-                        val esc = input[pos]
-                        if (esc !in "\\\"bfnrtu") fail("Invalid escape sequence '\\$esc'")
-                        if (esc == 'u') {
-                            if (pos + 4 >= input.length) fail("Incomplete Unicode escape")
-                            val hex = input.substring(pos + 1, pos + 5)
-                            if (!hex.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
-                                fail("Invalid Unicode escape '\\u$hex'")
-                            }
-                            pos += 4
-                        }
-                        advance()
-                    }
-                    else -> advance()
-                }
-            }
+        private fun parseStringValue(): JsonStringValue {
+            val start = pos
+            parseString()
+            val raw = input.substring(start, pos)
+            return JsonStringValue(raw, decodeString(raw))
         }
 
-        private fun parseNumber() {
+        private fun parseNumberValue(): JsonNumberValue {
             val start = pos
             if (peek() == '-') advance()
             if (peek() == '0') {
@@ -175,13 +136,42 @@ object JsonFormat {
             }
             val number = input.substring(start, pos)
             if (number.toDoubleOrNull() == null) fail("Invalid number '$number'")
+            return JsonNumberValue(number)
         }
 
-        private fun parseKeyword(word: String) {
+        private fun parseKeywordValue(word: String, value: JsonValue): JsonValue {
             if (pos + word.length > input.length || input.substring(pos, pos + word.length) != word) {
                 fail("Invalid literal")
             }
             repeat(word.length) { advance() }
+            return value
+        }
+
+        private fun parseString() {
+            advance() // opening quote
+            while (true) {
+                if (pos >= input.length) fail("Unterminated string")
+                val c = input[pos]
+                when (c) {
+                    '"' -> { advance(); return }
+                    '\\' -> {
+                        advance()
+                        if (pos >= input.length) fail("Unterminated escape sequence")
+                        val esc = input[pos]
+                        if (esc !in "\\\"/bfnrtu") fail("Invalid escape sequence '\\$esc'")
+                        if (esc == 'u') {
+                            if (pos + 4 >= input.length) fail("Incomplete Unicode escape")
+                            val hex = input.substring(pos + 1, pos + 5)
+                            if (!hex.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+                                fail("Invalid Unicode escape '\\u$hex'")
+                            }
+                            pos += 4
+                        }
+                        advance()
+                    }
+                    else -> advance()
+                }
+            }
         }
 
         private fun skipWhitespace() {
@@ -200,5 +190,104 @@ object JsonFormat {
         private fun fail(message: String): Nothing {
             throw IllegalArgumentException("Invalid JSON at line $line, column $col: $message")
         }
+    }
+
+    /** Decodes a raw JSON string slice (including the quotes) to its text value. */
+    private fun decodeString(raw: String): String {
+        val inner = raw.substring(1, raw.length - 1)
+        if ('\\' !in inner) return inner
+        val sb = StringBuilder(inner.length)
+        var i = 0
+        while (i < inner.length) {
+            val c = inner[i]
+            if (c != '\\') { sb.append(c); i++; continue }
+            i++
+            if (i >= inner.length) break
+            when (val esc = inner[i]) {
+                '"' -> sb.append('"')
+                '\\' -> sb.append('\\')
+                '/' -> sb.append('/')
+                'b' -> sb.append('\b')
+                'f' -> sb.append('\u000C')
+                'n' -> sb.append('\n')
+                'r' -> sb.append('\r')
+                't' -> sb.append('\t')
+                'u' -> { sb.append(inner.substring(i + 1, i + 5).toInt(16).toChar()); i += 4 }
+                else -> sb.append(esc) // unreachable: the parser already validated escapes
+            }
+            i++
+        }
+        return sb.toString()
+    }
+
+    private object CompactSerializer {
+        fun serialize(value: JsonValue): String {
+            val sb = StringBuilder()
+            write(value, sb)
+            return sb.toString()
+        }
+
+        internal fun write(value: JsonValue, sb: StringBuilder) {
+            when (value) {
+                is JsonObjectValue -> {
+                    sb.append('{')
+                    value.members.forEachIndexed { i, m ->
+                        if (i > 0) sb.append(',')
+                        sb.append(m.keyRaw).append(':')
+                        write(m.value, sb)
+                    }
+                    sb.append('}')
+                }
+                is JsonArrayValue -> {
+                    sb.append('[')
+                    value.items.forEachIndexed { i, item ->
+                        if (i > 0) sb.append(',')
+                        write(item, sb)
+                    }
+                    sb.append(']')
+                }
+                is JsonStringValue -> sb.append(value.raw)
+                is JsonNumberValue -> sb.append(value.raw)
+                is JsonBooleanValue -> sb.append(value.value)
+                is JsonNullValue -> sb.append("null")
+            }
+        }
+    }
+
+    private class PrettySerializer(private val width: Int) {
+        fun serialize(value: JsonValue): String {
+            val sb = StringBuilder()
+            write(value, 0, sb)
+            return sb.toString()
+        }
+
+        private fun write(value: JsonValue, depth: Int, sb: StringBuilder) {
+            when (value) {
+                is JsonObjectValue -> writeContainer(sb, depth, value.members.size, '{', '}') { i ->
+                    sb.append(pad(depth + 1)).append(value.members[i].keyRaw).append(": ")
+                    write(value.members[i].value, depth + 1, sb)
+                }
+                is JsonArrayValue -> writeContainer(sb, depth, value.items.size, '[', ']') { i ->
+                    sb.append(pad(depth + 1))
+                    write(value.items[i], depth + 1, sb)
+                }
+                else -> CompactSerializer.write(value, sb)
+            }
+        }
+
+        private inline fun writeContainer(sb: StringBuilder, depth: Int, size: Int, open: Char, close: Char, writeItem: (Int) -> Unit) {
+            if (size == 0) {
+                sb.append(open).append(close)
+                return
+            }
+            sb.append(open).append('\n')
+            for (i in 0 until size) {
+                if (i > 0) sb.append(',').append('\n')
+                writeItem(i)
+            }
+            sb.append('\n').append(pad(depth)).append(close)
+        }
+
+        private fun pad(depth: Int): String = " ".repeat(depth * width)
     }
 }
